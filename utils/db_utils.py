@@ -128,7 +128,7 @@ class DBManager:
             where_clause += " AND options REGEXP :io"
             # include_options must be sorted since SQLite doesn't support arrays or the ALL operator
             # so we must use regex for requiring a set of options
-            kwargs["io"] = "[\d\D]+".join(sorted(include_options))
+            kwargs["io"] = r"[\d\D]+".join(sorted(include_options))
 
         res = self._conn.execute(
             "SELECT * FROM vehicles WHERE code_type=:ct" + where_clause, kwargs

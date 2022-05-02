@@ -286,7 +286,9 @@ def run_browser_window(code_type: str, db_: DBManager) -> None:
             window_br["-BROWSER_TREE-"].update(values=new_treedata)
             window_br["-BROWSER_OPTIONS_LISTBOX-"].update(set_to_index=[])
             for i, item in enumerate(
-                window_br["-BROWSER_OPTIONS_LISTBOX-"].get_list_values()  # pylint: disable=no-member
+                window_br[  # pylint: disable=no-member
+                    "-BROWSER_OPTIONS_LISTBOX-"
+                ].get_list_values()
             ):
                 if item[0] in include_options:
                     window_br["-BROWSER_OPTIONS_LISTBOX-"].Widget.itemconfigure(
