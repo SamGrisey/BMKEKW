@@ -9,3 +9,14 @@ For discerning BMW enthusiasts or BMW buyers trying to make sense of the gorilli
 This is a filtering utility for narrowing down BMW vehicles by installed options provided through [bimmer.work](https://www.bimmer.work).
 
 Includes both manual and automated vehicle import methods enabled through the selenium webdriver.
+
+## Requirements
+Python3
+PySimpleGUI
+regex
+selenium
+selenium-stealth
+typing
+undetected-chromedriver
+
+Once Python & pip are installed, run install_python_requirements.ps1 on Windows or install_python_requirements.sh on Linux.
