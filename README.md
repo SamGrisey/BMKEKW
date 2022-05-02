@@ -11,12 +11,13 @@ This is a filtering utility for narrowing down BMW vehicles by installed options
 Includes both manual and automated vehicle import methods enabled through the selenium webdriver.
 
 ## Requirements
-* Python3
-* PySimpleGUI
-* regex
-* selenium
-* selenium-stealth
-* typing
-* undetected-chromedriver
+* [Python3](https://www.python.org/downloads/)
+* [pip](https://pypi.org/project/pip/)
+* [PySimpleGUI](https://pypi.org/project/PySimpleGUI/)
+* [regex](https://pypi.org/project/regex/)
+* [selenium](https://pypi.org/project/selenium/)
+* [selenium-stealth](https://pypi.org/project/selenium-stealth/)
+* [typing](https://pypi.org/project/typing/)
+* [undetected-chromedriver](https://pypi.org/project/undetected-chromedriver/)
 
 Once Python & pip are installed, run install_python_requirements.ps1 on Windows or install_python_requirements.sh on Linux.
