@@ -1,0 +1,6 @@
+PySimpleGUI
+regex
+selenium
+selenium-stealth
+typing
+undetected-chromedriver
