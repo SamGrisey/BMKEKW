@@ -1,7 +1,8 @@
+# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
+import typing as t
 import PySimpleGUI as sg
 from utils.db_utils import DBManager
-import typing as t
-from utils.bw_fetcher import BimmerWorkFetcher, FetchException
+from utils.bw_fetcher import BimmerWorkFetcher
 
 
 def launch_main_window() -> sg.Window:
@@ -28,25 +29,25 @@ def launch_main_window() -> sg.Window:
     )
 
 
-def run_main_window(db: DBManager) -> None:
+def run_main_window(db_: DBManager) -> None:
     window_main = launch_main_window()
 
     while True:
-        event_main, values_main = window_main.read()
+        event_main, _ = window_main.read()
         if event_main in (sg.WIN_CLOSED, "Exit"):
             break
 
-        elif event_main == "Manual Vehicle Import":
-            run_manual_import_window(db)
+        if event_main == "Manual Vehicle Import":
+            run_manual_import_window(db_)
 
         elif event_main == "Automated Vehicle Import":
-            run_auto_import_window(db)
+            run_auto_import_window()
 
         elif event_main == "Browse Vehicle Database":
-            code_type = run_model_selector_window(db)
+            code_type = run_model_selector_window(db_)
             if not code_type:
                 continue
-            run_browser_window(code_type, db)
+            run_browser_window(code_type, db_)
 
     window_main.close()
 
@@ -73,19 +74,19 @@ def launch_manual_import_window() -> sg.Window:
     )
 
 
-def run_manual_import_window(db: DBManager) -> None:
+def run_manual_import_window(db_: DBManager) -> None:
     window_mvi = launch_manual_import_window()
     while True:
         event_mvi, values_mvi = window_mvi.read()
         if event_mvi in (sg.WIN_CLOSED, "Exit"):
             break
-        elif event_mvi == "Import Vehicle Data":
+        if event_mvi == "Import Vehicle Data":
             data = [
                 tuple(line.split("\t"))
                 for line in values_mvi["-MANUAL_IMPORT_INPUT-"].split("\n")
                 if line and line.count("\t") > 0
             ]
-            window_mvi["-MANUAL_IMPORT_OUTPUT-"].update(db.import_vehicle(data))
+            window_mvi["-MANUAL_IMPORT_OUTPUT-"].update(db_.import_vehicle(data))
 
     window_mvi.close()
 
@@ -120,7 +121,7 @@ def launch_auto_import_window() -> sg.Window:
     )
 
 
-def run_auto_import_window(db: DBManager) -> None:
+def run_auto_import_window() -> None:
     window_avi = launch_auto_import_window()
     fetcher = None
     while True:
@@ -128,7 +129,7 @@ def run_auto_import_window(db: DBManager) -> None:
         if event_avi in (sg.WIN_CLOSED, "Exit"):
             break
 
-        elif event_avi == "Import Vehicle Data":
+        if event_avi == "Import Vehicle Data":
             if not fetcher:
                 fetcher = BimmerWorkFetcher()
             if not fetcher.task_running():
@@ -170,14 +171,14 @@ def launch_model_selector_window(models: t.List[str]) -> sg.Window:
     )
 
 
-def run_model_selector_window(db: DBManager) -> t.Optional[str]:
-    window_ms = launch_model_selector_window(db.get_all_code_types())
+def run_model_selector_window(db_: DBManager) -> t.Optional[str]:
+    window_ms = launch_model_selector_window(db_.get_all_code_types())
     code_type = None
     while True:
         event_ms, values_ms = window_ms.read()
         if event_ms in (sg.WIN_CLOSED, "Exit"):
             break
-        elif event_ms == "Select" and values_ms["-MODEL_SELECTOR_LISTBOX-"]:
+        if event_ms == "Select" and values_ms["-MODEL_SELECTOR_LISTBOX-"]:
             code_type = values_ms["-MODEL_SELECTOR_LISTBOX-"][0]
             break
 
@@ -243,11 +244,11 @@ def launch_browser_window(
     )
 
 
-def run_browser_window(code_type: str, db: DBManager) -> None:
+def run_browser_window(code_type: str, db_: DBManager) -> None:
     exclude_options = set()
     include_options = set()
-    vehicle_data = db.search_vehicles(code_type)
-    options_mapping = db.get_option_mapping(code_type)
+    vehicle_data = db_.search_vehicles(code_type)
+    options_mapping = db_.get_option_mapping(code_type)
     window_br = launch_browser_window(code_type, vehicle_data, options_mapping)
     while True:
         event_br, values_br = window_br.read()
@@ -255,7 +256,7 @@ def run_browser_window(code_type: str, db: DBManager) -> None:
             break
 
         # Events which require refreshing the browser treedata
-        elif event_br in (
+        if event_br in (
             "Allow Selected",
             "Disallow Selected",
             "Reset Selected",
@@ -276,16 +277,16 @@ def run_browser_window(code_type: str, db: DBManager) -> None:
                 exclude_options = set()
                 include_options = set()
             elif event_br == "Delete Selected Vehicles":
-                db.delete_vehicles([i[1:-1] for i in values_br["-BROWSER_TREE-"]])
+                db_.delete_vehicles([i[1:-1] for i in values_br["-BROWSER_TREE-"]])
 
-            vehicle_data = db.search_vehicles(
+            vehicle_data = db_.search_vehicles(
                 code_type, exclude_options, include_options
             )
             new_treedata = build_browser_treedata(vehicle_data, options_mapping)
             window_br["-BROWSER_TREE-"].update(values=new_treedata)
             window_br["-BROWSER_OPTIONS_LISTBOX-"].update(set_to_index=[])
             for i, item in enumerate(
-                window_br["-BROWSER_OPTIONS_LISTBOX-"].get_list_values()
+                window_br["-BROWSER_OPTIONS_LISTBOX-"].get_list_values()  # pylint: disable=no-member
             ):
                 if item[0] in include_options:
                     window_br["-BROWSER_OPTIONS_LISTBOX-"].Widget.itemconfigure(
@@ -326,9 +327,9 @@ def build_browser_treedata(
 
 
 def main():
-    db = DBManager()
-    run_main_window(db)
-    db.close()
+    db_ = DBManager()
+    run_main_window(db_)
+    db_.close()
 
 
 if __name__ == "__main__":

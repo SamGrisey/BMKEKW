@@ -1,9 +1,10 @@
+# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
 import typing as t
 import sqlite3
 from json import dumps, loads
 import re
 
-vehicles_table_schema = """
+VEHICLES_TABLE_SCHEMA = """
 CREATE TABLE vehicles(
     vin TEXT PRIMARY KEY,
     code_type TEXT,
@@ -14,7 +15,7 @@ CREATE TABLE vehicles(
 )
 """
 
-options_table_schema = """
+OPTIONS_TABLE_SCHEMA = """
 CREATE TABLE options(
     id TEXT,
     code_type TEXT,
@@ -39,13 +40,13 @@ class DBManager:
             "SELECT name FROM sqlite_master WHERE type='table' AND name='options'"
         ).fetchall()
         if not options_exists:
-            self._conn.execute(options_table_schema)
+            self._conn.execute(OPTIONS_TABLE_SCHEMA)
 
         vehicles_exists = self._conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='vehicles'"
         ).fetchall()
         if not vehicles_exists:
-            self._conn.execute(vehicles_table_schema)
+            self._conn.execute(VEHICLES_TABLE_SCHEMA)
 
         if self._conn.in_transaction:
             self._conn.commit()
@@ -144,7 +145,7 @@ class DBManager:
         ]
 
     def delete_vehicles(self, vin_list: t.List[str]) -> None:
-        res = self._conn.execute(
+        self._conn.execute(
             "DELETE FROM vehicles WHERE vin IN (:vl)", {"vl": ", ".join(vin_list)}
         )
 

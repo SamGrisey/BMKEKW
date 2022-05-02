@@ -1,17 +1,17 @@
+# pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
 import typing as t
-import selenium
 from time import sleep
+from threading import Thread
 from selenium_stealth import stealth
-import undetected_chromedriver.v2 as uc
+import undetected_chromedriver as uc
 from undetected_chromedriver import Chrome
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
-from .db_utils import DBManager
-from threading import Thread
+from utils.db_utils import DBManager
 
 
-GRECAPTCHA_TOKEN = "09ABpmNwIkOBcSAVYbWrvJ3C5Zu2RJJEbktvAKEN6FqB2zXWcarmgyM9vAiEIhjoBLdqURffE63rLfdNYxyyN2zEcs5g"
+GRECAPTCHA_TOKEN = "09ABpmNwIkOBcSAVYbWrvJ3C5Zu2RJJEbktvAKEN6FqB2zXWcarmgyM9vAiEIhjoBLdqURffE63rLfdNYxyyN2zEcs5g"  # pylint: disable=line-too-long
 YIELDS_PER_VIN = 9
 
 
@@ -19,9 +19,32 @@ class FetchException(Exception):
     pass
 
 
+def get_selenium_instance() -> Chrome:
+    chrome_options = uc.ChromeOptions()
+    chrome_options.headless = True
+    driver = uc.Chrome(
+        options=chrome_options,
+        version_main=99,
+    )
+
+    stealth(
+        driver,
+        languages=["en-US", "en"],
+        vendor="Google Inc.",
+        platform="Linux x86_64",
+        webgl_vendor="Google Inc. (Intel)",
+        renderer="ANGLE (Intel, Mesa Intel(R) HD Graphics 530 (SKL GT2), "
+        + "OpenGL 4.6 (Core Profile) Mesa 21.2.6)",
+        fix_hairline=True,
+        run_on_insecure_origins=True,
+    )
+
+    return driver
+
+
 class BimmerWorkFetcher:
     def __init__(self):
-        self._chrome = self._get_selenium_instance()
+        self._chrome = get_selenium_instance()
         self._task_progress = 0
         self._current_task = None
         self._task_results = []
@@ -29,31 +52,11 @@ class BimmerWorkFetcher:
     def close(self) -> None:
         self._chrome.close()
 
-    def _get_selenium_instance(self) -> Chrome:
-        chrome_options = uc.ChromeOptions()
-        chrome_options.headless = True
-        driver = uc.Chrome(
-            options=chrome_options,
-            version_main=99,
-        )
-
-        stealth(
-            driver,
-            languages=["en-US", "en"],
-            vendor="Google Inc.",
-            platform="Linux x86_64",
-            webgl_vendor="Google Inc. (Intel)",
-            renderer="ANGLE (Intel, Mesa Intel(R) HD Graphics 530 (SKL GT2), "
-            + "OpenGL 4.6 (Core Profile) Mesa 21.2.6)",
-            fix_hairline=True,
-            run_on_insecure_origins=True,
-        )
-
-        return driver
-
-    def _fetch_vin(self, vin: str) -> t.List[t.Tuple[str, ...]]:
-        # bimmer.work is protected by captcha so we need to act like a real person as much as possible
-        # yields are placed at relatively regulay intervals to report progress back
+    def _fetch_vin(  # pylint: disable=too-many-statements
+        self, vin: str
+    ) -> t.List[t.Tuple[str, ...]]:
+        # bimmer.work is protected by captcha so we need to act like a real person as much as
+        # possible. Yields are placed at relatively regulay intervals to report progress back
         # to the parent loop
 
         # nav to site through google search for more realism
@@ -95,7 +98,7 @@ class BimmerWorkFetcher:
             piece_of_trash = self._chrome.find_element(
                 by=By.XPATH, value="//button[@class='cc-nb-reject']"
             )
-        except:
+        except Exception:  # pylint: disable=broad-except
             pass
         else:
             sleep(2)
@@ -120,9 +123,10 @@ class BimmerWorkFetcher:
         try:
             self._chrome.find_element(
                 by=By.XPATH,
-                value="//div[@class='g-recaptcha-bubble-arrow' and not(ancestor::div[contains(@style,'visibility: hidden')])]",
+                value="//div[@class='g-recaptcha-bubble-arrow' and "
+                "not(ancestor::div[contains(@style,'visibility: hidden')])]",
             )
-        except:
+        except Exception:  # pylint: disable=broad-except
             submit_button = self._chrome.find_element(
                 by=By.XPATH, value="//button[@type='submit']"
             )
@@ -166,32 +170,6 @@ class BimmerWorkFetcher:
             )
         yield data
 
-    def _fetch_vin_test(self, vin: str) -> t.List[t.Tuple[str, ...]]:
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-        sleep(1)
-        yield []
-
-    def start_import_task_test(self, vin_list: t.List[str]) -> None:
-        if len(vin_list) == 0:
-            return
-        self._current_task = Thread(target=self._import_vins_test, args=[vin_list])
-        self._current_task.start()
-
     def start_import_task(self, vin_list: t.List[str]) -> None:
         if len(vin_list) == 0:
             return
@@ -199,7 +177,7 @@ class BimmerWorkFetcher:
         self._current_task.start()
 
     def _import_vins(self, vin_list: t.List[str]) -> None:
-        db = DBManager()
+        db_ = DBManager()
         progress_per_yield = 100 / (len(vin_list) * YIELDS_PER_VIN)
         self._task_progress = 0
         self._task_results = []
@@ -208,39 +186,18 @@ class BimmerWorkFetcher:
                 # set up the fetcher as a generator so we can measure progress with
                 # greater granularity
                 data = []
-                for d in self._fetch_vin(vin):
-                    data = d
+                for retval in self._fetch_vin(vin):
+                    data = retval
                     self._task_progress += progress_per_yield
 
-                import_result = db.import_vehicle(data)
+                import_result = db_.import_vehicle(data)
                 self._task_results.append(f"{vin}: {import_result}")
             except FetchException as error:
                 self._task_results.append(f"{vin}: {error}")
-            except Exception as error:
+            except Exception:  # pylint: disable=broad-except
                 self._task_results.append(f"{vin}: Generic error")
             self._task_progress = ((idx + 1) / len(vin_list)) * 100
-        db.close()
-
-    def _import_vins_test(self, vin_list: t.List[str]) -> None:
-        self._task_progress = 0
-        progress_per_yield = 100 / (len(vin_list) * YIELDS_PER_VIN)
-        results = []
-        for idx, vin in enumerate(vin_list):
-            try:
-                # set up the fetcher as a generator so we can measure progress with
-                # greater granularity
-                for d in self._fetch_vin_test(vin):
-                    data = d
-                    self._task_progress += progress_per_yield
-                import_result = self._db.import_vehivle(data)
-                results.append(f"{vin}: {import_result}")
-            except FetchException as error:
-                results.append(f"{vin}: {error}")
-            except Exception as error:
-                results.append(f"{vin}: Generic error")
-            self._task_progress = ((idx + 1) / len(vin_list)) * 100
-
-        self._task_results = results
+        db_.close()
 
     def consume_task_results(self) -> t.Optional[t.List[str]]:
         if not self.task_running() or self.task_progress() < 100:
