@@ -1,8 +1,21 @@
 # pylint: disable=missing-module-docstring, missing-function-docstring, missing-class-docstring
 import typing as t
+from contextlib import contextmanager
 import PySimpleGUI as sg
 from utils.db_utils import DBManager
 from utils.bw_fetcher import BimmerWorkFetcher
+
+CHECK_MARK_ICON = b"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABgUExURV16RpGYjH6TbXGLXM3mucLmqajld1KCLIvSWIPNU4DLT5PmV1JnQpHQaYvOYDZZGrPdluz35f///0twLtTtxYzlUHG/RHbDR/n894nkTKTad2m4PkxgPH7VR4DZSAAAALbJwFUAAAAgdFJOU/////////////////////////////////////////8AXFwb7QAAAAlwSFlzAAAOwwAADsMBx2+oZAAAAIdJREFUKFNdzNESwxAQBdBIpAm6GipURf3/X2YXnXZyH4x7dhnKJRUGxtg4thmdE+fzDbN0mPiKEUIqkqHcORYhJXCtHhU2mkowFtSzAS1oY53YO2hnwNnNh70/gfllsP8gBDDYvY8N3ikEqim1jXKseKdE/JMAJeacP7VXKMdCwf0v/OcCpZycmhXp7UdT0gAAAABJRU5ErkJggg=="  # pylint: disable=line-too-long
+BLANK_ICON = b"iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAATSURBVDhPYxgFo2AUjAIwYGAAAAQQAAGnRHxjAAAAAElFTkSuQmCC"  # pylint: disable=line-too-long
+
+
+@contextmanager
+def hide_window_for_context(caller: sg.Window):
+    try:
+        caller.Hide()
+        yield None
+    finally:
+        caller.UnHide()
 
 
 def launch_main_window() -> sg.Window:
@@ -38,16 +51,19 @@ def run_main_window(db_: DBManager) -> None:
             break
 
         if event_main == "Manual Vehicle Import":
-            run_manual_import_window(db_)
+            with hide_window_for_context(window_main):
+                run_manual_import_window(db_)
 
         elif event_main == "Automated Vehicle Import":
-            run_auto_import_window()
+            with hide_window_for_context(window_main):
+                run_auto_import_window()
 
         elif event_main == "Browse Vehicle Database":
             code_type = run_model_selector_window(db_)
             if not code_type:
                 continue
-            run_browser_window(code_type, db_)
+            with hide_window_for_context(window_main):
+                run_browser_window(code_type, db_)
 
     window_main.close()
 
@@ -212,6 +228,12 @@ def launch_browser_window(
 
     viewer_column_layout = [
         [
+            sg.Text(
+                "Check mark indicates an option missing from at least 1 other displayed vehicle.",
+                size=(90, 1),
+            )
+        ],
+        [
             sg.Tree(
                 data=treedata,
                 headings=[""],
@@ -244,7 +266,9 @@ def launch_browser_window(
     )
 
 
-def run_browser_window(code_type: str, db_: DBManager) -> None:
+def run_browser_window(  # pylint: disable=too-many-branches
+    code_type: str, db_: DBManager
+) -> None:
     exclude_options = set()
     require_options = set()
     vehicle_data = db_.search_vehicles(code_type)
@@ -277,7 +301,13 @@ def run_browser_window(code_type: str, db_: DBManager) -> None:
                 exclude_options = set()
                 require_options = set()
             elif event_br == "Delete Selected Vehicles":
-                db_.delete_vehicles([i[1:-1] for i in values_br["-BROWSER_TREE-"]])
+                if (
+                    sg.popup_yes_no(
+                        "Do you really want to delete the selected vehicle(s)?"
+                    )
+                    == "Yes"
+                ):
+                    db_.delete_vehicles([i[1:-1] for i in values_br["-BROWSER_TREE-"]])
 
             vehicle_data = db_.search_vehicles(
                 code_type, exclude_options, require_options
@@ -310,6 +340,10 @@ def build_browser_treedata(
     vehicles: t.List[t.Dict[str, t.Any]],
     options_mapping: t.Dict[str, str],
 ) -> sg.TreeData:
+    # build set of options missing from at least 1 car in vehicles
+    universe = set(options_mapping.keys())
+    missing_opts = set().union(*[universe - set(car["options"]) for car in vehicles])
+
     treedata = sg.TreeData()
     for car in vehicles:
         treedata.Insert("", f"_{car['vin']}_", car["vin"], [])
@@ -322,6 +356,7 @@ def build_browser_treedata(
                         f"_{car['vin']}_{key}_{option}_",
                         option,
                         [options_mapping[option]],
+                        icon=CHECK_MARK_ICON if option in missing_opts else BLANK_ICON,
                     )
             else:
                 treedata.Insert(f"_{car['vin']}_", f"_{car['vin']}_{key}_", key, [val])
