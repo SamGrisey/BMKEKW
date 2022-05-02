@@ -203,7 +203,7 @@ def launch_browser_window(
             ),
         ],
         [
-            sg.Button("Allow Selected"),
+            sg.Button("Require Selected"),
             sg.Button("Disallow Selected"),
             sg.Button("Reset Selected"),
             sg.Button("Reset All"),
@@ -246,7 +246,7 @@ def launch_browser_window(
 
 def run_browser_window(code_type: str, db_: DBManager) -> None:
     exclude_options = set()
-    include_options = set()
+    require_options = set()
     vehicle_data = db_.search_vehicles(code_type)
     options_mapping = db_.get_option_mapping(code_type)
     window_br = launch_browser_window(code_type, vehicle_data, options_mapping)
@@ -257,7 +257,7 @@ def run_browser_window(code_type: str, db_: DBManager) -> None:
 
         # Events which require refreshing the browser treedata
         if event_br in (
-            "Allow Selected",
+            "Require Selected",
             "Disallow Selected",
             "Reset Selected",
             "Reset All",
@@ -266,21 +266,21 @@ def run_browser_window(code_type: str, db_: DBManager) -> None:
             changeset = set(o[0] for o in values_br["-BROWSER_OPTIONS_LISTBOX-"])
             if event_br == "Reset Selected":
                 exclude_options -= changeset
-                include_options -= changeset
+                require_options -= changeset
             elif event_br == "Disallow Selected":
-                include_options -= changeset
+                require_options -= changeset
                 exclude_options = exclude_options | changeset
-            elif event_br == "Allow Selected":
+            elif event_br == "Require Selected":
                 exclude_options -= changeset
-                include_options = include_options | changeset
+                require_options = require_options | changeset
             elif event_br == "Reset All":
                 exclude_options = set()
-                include_options = set()
+                require_options = set()
             elif event_br == "Delete Selected Vehicles":
                 db_.delete_vehicles([i[1:-1] for i in values_br["-BROWSER_TREE-"]])
 
             vehicle_data = db_.search_vehicles(
-                code_type, exclude_options, include_options
+                code_type, exclude_options, require_options
             )
             new_treedata = build_browser_treedata(vehicle_data, options_mapping)
             window_br["-BROWSER_TREE-"].update(values=new_treedata)
@@ -290,7 +290,7 @@ def run_browser_window(code_type: str, db_: DBManager) -> None:
                     "-BROWSER_OPTIONS_LISTBOX-"
                 ].get_list_values()
             ):
-                if item[0] in include_options:
+                if item[0] in require_options:
                     window_br["-BROWSER_OPTIONS_LISTBOX-"].Widget.itemconfigure(
                         i, bg="green", fg="white"
                     )

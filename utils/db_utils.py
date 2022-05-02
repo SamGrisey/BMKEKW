@@ -117,18 +117,18 @@ class DBManager:
         self,
         code_type: str,
         exclude_options: t.Optional[t.Set[str]] = None,
-        include_options: t.Optional[t.Set[str]] = None,
+        require_options: t.Optional[t.Set[str]] = None,
     ) -> t.List[t.Dict[str, t.Any]]:
         where_clause = ""
         kwargs = {"ct": code_type}
         if exclude_options:
             where_clause += " AND NOT options REGEXP :eo"
             kwargs["eo"] = "|".join(exclude_options)
-        if include_options:
+        if require_options:
             where_clause += " AND options REGEXP :io"
-            # include_options must be sorted since SQLite doesn't support arrays or the ALL operator
+            # require_options must be sorted since SQLite doesn't support arrays or the ALL operator
             # so we must use regex for requiring a set of options
-            kwargs["io"] = r"[\d\D]+".join(sorted(include_options))
+            kwargs["io"] = r"[\d\D]+".join(sorted(require_options))
 
         res = self._conn.execute(
             "SELECT * FROM vehicles WHERE code_type=:ct" + where_clause, kwargs
@@ -159,7 +159,8 @@ class DBManager:
 
     def get_option_mapping(self, code_type: str) -> t.Dict[str, str]:
         res = self._conn.execute(
-            "SELECT id, name FROM options WHERE code_type=:ct", {"ct": code_type}
+            "SELECT id, name FROM options WHERE code_type=:ct ORDER BY id",
+            {"ct": code_type},
         ).fetchall()
 
         if self._conn.in_transaction:
@@ -169,7 +170,7 @@ class DBManager:
 
     def get_all_code_types(self) -> t.List[str]:
         code_types = self._conn.execute(
-            "SELECT DISTINCT code_type FROM vehicles"
+            "SELECT DISTINCT code_type FROM vehicles ORDER BY code_type"
         ).fetchall()
         if self._conn.in_transaction:
             self._conn.commit()
